@@ -62,6 +62,7 @@ private fun SwagApp() {
     val activity = context as? ComponentActivity
     var showBrandSplash by remember { mutableStateOf(true) }
     var permissionDenied by remember { mutableStateOf(false) }
+    var pendingGallery by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf("Home") }
     var selectedVideo by remember { mutableStateOf<Uri?>(null) }
     val videoPermission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_VIDEO
@@ -73,12 +74,19 @@ private fun SwagApp() {
         }
     }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) videoPicker.launch("video/*") else permissionDenied = true
+        if (granted) {
+            permissionDenied = false
+            if (pendingGallery) videoPicker.launch("video/*")
+        } else {
+            permissionDenied = true
+        }
+        pendingGallery = false
     }
     val launchGallery = {
         if (ContextCompat.checkSelfPermission(context, videoPermission) == PackageManager.PERMISSION_GRANTED) {
             videoPicker.launch("video/*")
         } else {
+            pendingGallery = true
             permissionLauncher.launch(videoPermission)
         }
     }
@@ -93,6 +101,9 @@ private fun SwagApp() {
     LaunchedEffect(Unit) {
         delay(1700)
         showBrandSplash = false
+        if (ContextCompat.checkSelfPermission(context, videoPermission) != PackageManager.PERMISSION_GRANTED) {
+            permissionLauncher.launch(videoPermission)
+        }
     }
 
     MaterialTheme(colorScheme = lightColorScheme(primary = Purple, background = Canvas, surface = Color.White)) {
@@ -130,7 +141,7 @@ private fun SwagApp() {
                     "Home" -> HomeContent(Modifier.padding(padding), onCreate = { launchGallery() })
                     "Templates" -> FeaturePage("Templates", "Choose a video first to start creating with a template.", "Pick Video") { launchGallery() }
                     "Projects" -> FeaturePage("My Projects", "Your imported videos will open in the editor. Project saving is coming in a later update.", "Import Video") { launchGallery() }
-                    "AI Studio" -> FeaturePage("AI Studio", "AI tools are being added. You can already import a video and preview it in SWAG.", "Import Video") { videoPicker.launch("video/*") }
+                    "AI Studio" -> FeaturePage("AI Studio", "AI tools are being added. You can already import a video and preview it in SWAG.", "Import Video") { launchGallery() }
                 }
             }
         }
@@ -139,14 +150,6 @@ private fun SwagApp() {
                 onDismissRequest = { permissionDenied = false },
                 title = { Text("Video permission required") },
                 text = { Text("SWAG needs video access to show videos from your Gallery. Allow video access in Android Settings and try again.") },
-                confirmButton = { TextButton(onClick = { permissionDenied = false }) { Text("OK") } }
-            )
-        }
-        if (permissionDenied) {
-            AlertDialog(
-                onDismissRequest = { permissionDenied = false },
-                title = { Text("Video permission required") },
-                text = { Text("Allow video access so SWAG can open videos from your phone. You can change this permission in Android Settings.") },
                 confirmButton = { TextButton(onClick = { permissionDenied = false }) { Text("OK") } }
             )
         }
