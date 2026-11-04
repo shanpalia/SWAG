@@ -2,9 +2,13 @@ package com.paliaapk.swag
 
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.Manifest
+import android.content.pm.PackageManager
 import android.widget.MediaController
 import android.widget.VideoView
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,13 +58,35 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun SwagApp() {
+    val context = LocalContext.current
+    val activity = context as? ComponentActivity
     var showBrandSplash by remember { mutableStateOf(true) }
+    var permissionDenied by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf("Home") }
     var selectedVideo by remember { mutableStateOf<Uri?>(null) }
+    val videoPermission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_VIDEO
+        else Manifest.permission.READ_EXTERNAL_STORAGE
     val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             selectedVideo = uri
             page = "Editor"
+        }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) videoPicker.launch("video/*") else permissionDenied = true
+    }
+    val launchGallery = {
+        if (ContextCompat.checkSelfPermission(context, videoPermission) == PackageManager.PERMISSION_GRANTED) {
+            videoPicker.launch("video/*")
+        } else {
+            permissionLauncher.launch(videoPermission)
+        }
+    }
+    BackHandler(enabled = !showBrandSplash) {
+        when {
+            page == "Editor" -> page = "Home"
+            page != "Home" -> page = "Home"
+            else -> activity?.moveTaskToBack(true)
         }
     }
 
@@ -99,8 +127,8 @@ private fun SwagApp() {
                 }
             ) { padding ->
                 when (page) {
-                    "Home" -> HomeContent(Modifier.padding(padding), onCreate = { videoPicker.launch("video/*") })
-                    "Templates" -> FeaturePage("Templates", "Choose a video first to start creating with a template.", "Pick Video") { videoPicker.launch("video/*") }
+                    "Home" -> HomeContent(Modifier.padding(padding), onCreate = { launchGallery() })
+                    "Templates" -> FeaturePage("Templates", "Choose a video first to start creating with a template.", "Pick Video") { launchGallery() }
                     "Projects" -> FeaturePage("My Projects", "Your imported videos will open in the editor. Project saving is coming in a later update.", "Import Video") { videoPicker.launch("video/*") }
                     "AI Studio" -> FeaturePage("AI Studio", "AI tools are being added. You can already import a video and preview it in SWAG.", "Import Video") { videoPicker.launch("video/*") }
                 }
@@ -111,6 +139,14 @@ private fun SwagApp() {
                 onDismissRequest = { permissionDenied = false },
                 title = { Text("Video permission required") },
                 text = { Text("SWAG needs video access to show videos from your Gallery. Allow video access in Android Settings and try again.") },
+                confirmButton = { TextButton(onClick = { permissionDenied = false }) { Text("OK") } }
+            )
+        }
+        if (permissionDenied) {
+            AlertDialog(
+                onDismissRequest = { permissionDenied = false },
+                title = { Text("Video permission required") },
+                text = { Text("Allow video access so SWAG can open videos from your phone. You can change this permission in Android Settings.") },
                 confirmButton = { TextButton(onClick = { permissionDenied = false }) { Text("OK") } }
             )
         }
