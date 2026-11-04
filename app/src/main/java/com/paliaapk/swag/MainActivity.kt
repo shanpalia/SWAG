@@ -129,7 +129,7 @@ private fun SwagApp() {
                 when (page) {
                     "Home" -> HomeContent(Modifier.padding(padding), onCreate = { launchGallery() })
                     "Templates" -> FeaturePage("Templates", "Choose a video first to start creating with a template.", "Pick Video") { launchGallery() }
-                    "Projects" -> FeaturePage("My Projects", "Your imported videos will open in the editor. Project saving is coming in a later update.", "Import Video") { videoPicker.launch("video/*") }
+                    "Projects" -> FeaturePage("My Projects", "Your imported videos will open in the editor. Project saving is coming in a later update.", "Import Video") { launchGallery() }
                     "AI Studio" -> FeaturePage("AI Studio", "AI tools are being added. You can already import a video and preview it in SWAG.", "Import Video") { videoPicker.launch("video/*") }
                 }
             }
