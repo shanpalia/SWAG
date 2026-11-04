@@ -1,8 +1,13 @@
 package com.paliaapk.swag
 
+import android.net.Uri
 import android.os.Bundle
+import android.widget.MediaController
+import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,6 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import kotlinx.coroutines.delay
 
 private val Purple = Color(0xFF831BEE)
 private val Ink = Color(0xFF171421)
@@ -31,51 +39,96 @@ private val Canvas = Color(0xFFF8F7FC)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(248, 247, 252)
         window.navigationBarColor = android.graphics.Color.rgb(248, 247, 252)
         window.decorView.systemUiVisibility =
             android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
             android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        setContent { SwagHome() }
+        setContent { SwagApp() }
     }
 }
 
 @Composable
-private fun SwagHome() {
+private fun SwagApp() {
+    var showBrandSplash by remember { mutableStateOf(true) }
     var page by remember { mutableStateOf("Home") }
-    var editor by remember { mutableStateOf(false) }
+    var selectedVideo by remember { mutableStateOf<Uri?>(null) }
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            selectedVideo = uri
+            page = "Editor"
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        delay(1700)
+        showBrandSplash = false
+    }
 
     MaterialTheme(colorScheme = lightColorScheme(primary = Purple, background = Canvas, surface = Color.White)) {
-        if (editor) {
-            Column(Modifier.fillMaxSize().background(Canvas)) {
-                Row(Modifier.fillMaxWidth().background(Color.White).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { editor = false }) { Icon(Icons.Filled.ArrowBack, "Back") }
-                    Text("New Project", fontWeight = FontWeight.Bold, fontSize = 19.sp)
-                }
-                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text("Editor workspace\nVideo import and editing engine will be added next", color = Muted)
-                }
-            }
-        } else {
-            Scaffold(
+        when {
+            showBrandSplash -> BrandSplash()
+            page == "Editor" -> EditorScreen(
+                videoUri = selectedVideo,
+                onBack = { page = "Home" },
+                onPickVideo = { videoPicker.launch("video/*") }
+            )
+            else -> Scaffold(
                 containerColor = Canvas,
                 bottomBar = {
-                    Row(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(vertical = 7.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(vertical = 7.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         BottomItem("Home", Icons.Filled.Home, page == "Home") { page = "Home" }
                         BottomItem("Templates", Icons.Filled.Collections, page == "Templates") { page = "Templates" }
-                        Surface(Modifier.size(56.dp).clickable { editor = true }, shape = CircleShape, color = Purple, shadowElevation = 8.dp) {
-                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Add, "New Project", tint = Color.White, modifier = Modifier.size(34.dp)) }
+                        Surface(
+                            Modifier.size(56.dp).clickable { videoPicker.launch("video/*") },
+                            shape = CircleShape, color = Purple, shadowElevation = 8.dp
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.Add, "New Project", tint = Color.White, modifier = Modifier.size(34.dp))
+                            }
                         }
                         BottomItem("Projects", Icons.Filled.VideoLibrary, page == "Projects") { page = "Projects" }
                         BottomItem("AI Studio", Icons.Filled.AutoAwesome, page == "AI Studio") { page = "AI Studio" }
                     }
                 }
             ) { padding ->
-                if (page == "Home") HomeContent(Modifier.padding(padding), onCreate = { editor = true })
-                else SimplePage(page, Modifier.padding(padding)) { editor = true }
+                when (page) {
+                    "Home" -> HomeContent(Modifier.padding(padding), onCreate = { videoPicker.launch("video/*") })
+                    "Templates" -> FeaturePage("Templates", "Choose a video first to start creating with a template.", "Pick Video") { videoPicker.launch("video/*") }
+                    "Projects" -> FeaturePage("My Projects", "Your imported videos will open in the editor. Project saving is coming in a later update.", "Import Video") { videoPicker.launch("video/*") }
+                    "AI Studio" -> FeaturePage("AI Studio", "AI tools are being added. You can already import a video and preview it in SWAG.", "Import Video") { videoPicker.launch("video/*") }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun BrandSplash() {
+    Box(
+        Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF080416), Color(0xFF241052), Color(0xFF4C087B)))),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                Modifier.size(116.dp).clip(RoundedCornerShape(32.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF05D9F5), Purple, Color(0xFFFF20C8)))),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("S", color = Color.White, fontSize = 86.sp, fontWeight = FontWeight.Black)
+            }
+            Spacer(Modifier.height(18.dp))
+            Text("SWAG", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)
+            Text("VIDEO EDITOR", color = Color(0xFFB8F7FF), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
+            Spacer(Modifier.height(38.dp))
+            Text("By PALIAAPK HUB", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text("Developer By shanpalia", color = Color.White.copy(alpha = .75f), fontSize = 12.sp)
         }
     }
 }
@@ -122,7 +175,7 @@ private fun HomeContent(modifier: Modifier = Modifier, onCreate: () -> Unit) {
                 Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
                     Column {
                         Text("Edit Like a Pro", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("Professional Video Editor\nwith AI Tools", color = Color.White.copy(alpha = .92f), fontSize = 14.sp, lineHeight = 19.sp)
+                        Text("Professional Video Editor\\nwith AI Tools", color = Color.White.copy(alpha = .92f), fontSize = 14.sp, lineHeight = 19.sp)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         HeroChip("Effects", Icons.Filled.AutoAwesome)
@@ -130,8 +183,7 @@ private fun HomeContent(modifier: Modifier = Modifier, onCreate: () -> Unit) {
                         HeroChip("AI Edit", Icons.Filled.Bolt)
                     }
                 }
-                Icon(Icons.Filled.Movie, null, tint = Color.White.copy(alpha = .20f),
-                    modifier = Modifier.align(Alignment.CenterEnd).size(88.dp))
+                Icon(Icons.Filled.Movie, null, tint = Color.White.copy(alpha = .20f), modifier = Modifier.align(Alignment.CenterEnd).size(88.dp))
             }
         }
         item {
@@ -145,7 +197,7 @@ private fun HomeContent(modifier: Modifier = Modifier, onCreate: () -> Unit) {
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text("New Project", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Start Editing Now", color = Color.White.copy(alpha = .9f), fontSize = 14.sp)
+                    Text("Choose a video from Gallery", color = Color.White.copy(alpha = .9f), fontSize = 13.sp)
                 }
                 Icon(Icons.Filled.Movie, null, tint = Color.White.copy(alpha = .25f), modifier = Modifier.size(58.dp))
             }
@@ -203,6 +255,70 @@ private fun HomeContent(modifier: Modifier = Modifier, onCreate: () -> Unit) {
 }
 
 @Composable
+private fun EditorScreen(videoUri: Uri?, onBack: () -> Unit, onPickVideo: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Color(0xFF100C19))) {
+        Row(Modifier.fillMaxWidth().background(Color(0xFF1B1428)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
+            Text("SWAG Editor", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            TextButton(onClick = onPickVideo) { Text("Change video", color = Color(0xFFDC9BFF)) }
+        }
+        if (videoUri == null) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Filled.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(58.dp))
+                    Text("Select a video to begin", color = Color.White)
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = onPickVideo) { Text("Choose from Gallery") }
+                }
+            }
+        } else {
+            AndroidView(
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(12.dp).clip(RoundedCornerShape(16.dp)),
+                factory = { context ->
+                    VideoView(context).apply {
+                        setVideoURI(videoUri)
+                        val controller = MediaController(context)
+                        controller.setAnchorView(this)
+                        setMediaController(controller)
+                        setOnPreparedListener { mp -> mp.isLooping = false }
+                    }
+                },
+                update = { it.setVideoURI(videoUri) }
+            )
+        }
+        Column(Modifier.fillMaxWidth().background(Color(0xFF1B1428)).padding(14.dp)) {
+            Text("Basic tools", color = Color.White, fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                EditorTool("Trim", Icons.Filled.ContentCut)
+                EditorTool("Audio", Icons.Filled.MusicNote)
+                EditorTool("Text", Icons.Filled.TextFields)
+                EditorTool("Speed", Icons.Filled.Speed)
+                EditorTool("Filter", Icons.Filled.Palette)
+            }
+            Text("Preview & playback are available. Editing operations and MP4 export are not implemented yet.",
+                color = Color(0xFFB8AFC5), fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun EditorTool(label: String, icon: ImageVector) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 10.dp)) {
+        Icon(icon, null, tint = Color(0xFFD59AFF), modifier = Modifier.size(24.dp))
+        Text(label, color = Color.White, fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun FeaturePage(title: String, description: String, action: String, onAction: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(title, color = Ink, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+        Text(description, color = Muted, fontSize = 15.sp)
+        Button(onClick = onAction, shape = RoundedCornerShape(14.dp)) { Text(action) }
+    }
+}
+
+@Composable
 private fun HeroChip(label: String, icon: ImageVector) {
     Surface(shape = RoundedCornerShape(18.dp), color = Color.Black.copy(alpha = .28f)) {
         Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -246,14 +362,5 @@ private fun BottomItem(label: String, icon: ImageVector, selected: Boolean, onCl
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Icon(icon, label, tint = if (selected) Purple else Ink, modifier = Modifier.size(23.dp))
         Text(label, color = if (selected) Purple else Ink, fontSize = 9.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun SimplePage(title: String, modifier: Modifier = Modifier, onCreate: () -> Unit) {
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text(title, fontSize = 27.sp, fontWeight = FontWeight.Bold, color = Ink)
-        Text("Explore SWAG $title", color = Muted)
-        Button(onClick = onCreate) { Text("Start a project") }
     }
 }
