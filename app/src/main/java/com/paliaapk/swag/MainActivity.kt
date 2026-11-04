@@ -73,7 +73,7 @@ private fun SwagApp() {
             page == "Editor" -> EditorScreen(
                 videoUri = selectedVideo,
                 onBack = { page = "Home" },
-                onPickVideo = { videoPicker.launch("video/*") }
+                onPickVideo = { launchGallery() }
             )
             else -> Scaffold(
                 containerColor = Canvas,
@@ -86,7 +86,7 @@ private fun SwagApp() {
                         BottomItem("Home", Icons.Filled.Home, page == "Home") { page = "Home" }
                         BottomItem("Templates", Icons.Filled.Collections, page == "Templates") { page = "Templates" }
                         Surface(
-                            Modifier.size(56.dp).clickable { videoPicker.launch("video/*") },
+                            Modifier.size(56.dp).clickable { launchGallery() },
                             shape = CircleShape, color = Purple, shadowElevation = 8.dp
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -105,6 +105,14 @@ private fun SwagApp() {
                     "AI Studio" -> FeaturePage("AI Studio", "AI tools are being added. You can already import a video and preview it in SWAG.", "Import Video") { videoPicker.launch("video/*") }
                 }
             }
+        }
+        if (permissionDenied) {
+            AlertDialog(
+                onDismissRequest = { permissionDenied = false },
+                title = { Text("Video permission required") },
+                text = { Text("SWAG needs video access to show videos from your Gallery. Allow video access in Android Settings and try again.") },
+                confirmButton = { TextButton(onClick = { permissionDenied = false }) { Text("OK") } }
+            )
         }
     }
 }
