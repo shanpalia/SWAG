@@ -1,0 +1,14 @@
+<resources>
+    <style name="Theme.Swag" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#831BEE</item>
+        <item name="android:statusBarColor">#F8F7FC</item>
+        <item name="android:navigationBarColor">#F8F7FC</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+    <style name="Theme.Swag.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#10051F</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_swag_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.Swag</item>
+    </style>
+</resources>
